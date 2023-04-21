@@ -26,7 +26,7 @@ public class lab1{
         // Заменяем 10 послед-тей s-s-b на послед-ти s-b-s в случайных местах
         int count = 0;
         Random random = new Random();
-        while (count < 15) {
+        while (count < (int) (Math.random() * 100)) {
             int index = random.nextInt(bytes.length - 2);
             if (bytes[index] == ' ' && bytes[index + 1] == ' ' && bytes[index + 2] == '\b') {
                 bytes[index + 1] = '\b';

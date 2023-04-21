@@ -23,7 +23,7 @@ public class lab1{
             }
         }
 
-        // Заменяем 10 послед-тей s-s-b на послед-ти s-b-s в случайных местах
+        // Заменяем рандомное кол-во послед-тей s-s-b на послед-ти s-b-s в случайных местах
         int count = 0;
         Random random = new Random();
         while (count < (int) (Math.random() * 100)) {

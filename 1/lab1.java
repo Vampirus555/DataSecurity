@@ -1,85 +1,87 @@
 import java.io.*;
-import java.util.ArrayList;
+import java.util.Random;
 
 
 public class lab1{
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        String inputFilePath = new java.io.File("leasing.txt").getPath();
+        String outputFilePath = new java.io.File("leasing_new.txt").getPath();
+        
+        while(true){
+            // Читаем байты файла
+        FileInputStream fis = new FileInputStream(inputFilePath);
+        byte[] bytes = fis.readAllBytes();
+        fis.close();
 
-
-        try(FileInputStream fin=new FileInputStream("leasing.txt");
-                FileOutputStream fos=new FileOutputStream("leasing_new.txt"))
-        {
-            byte[] buffer = new byte[256];
-           
-            ArrayList<Byte> buf = new ArrayList<Byte>();
-             
-            int count;
-            // считываем буфер
-            while((count=fin.read(buffer))!=-1){
-                for(int i=0; i<count;i++){
-             
-                
-                    buf.add(buffer[i]);
-                    if ((char)buffer[i] == ' ') {
-                    
-                        buf.add((byte)'\b');
-                        buf.add((byte)' ');
-                    }
-            
-                }
-                byte[] buffer2 = new byte[buf.size()];
-                for (Byte byt : buf) {
-                    for (int i=0;i<buf.size();i++){
-                        buffer2[i] = byt;
-                    }
-                }
-                // for(int j=0; j<buf.size();j++){
-             
-                //     if (buf.get(j) == 32){
-                //         buf.add(j+1,(byte)'\b');
-                //         buf.add(j+2,(byte)' ');
-                //     }
-                    
-                // }
-                    
-                // записываем из буфера в файл
-                fos.write(buffer2, 0, buf.size());
-                
+        // Заменяем пробелы на послед-ть s-s-b
+        for (int i = 0; i < bytes.length; i++) {
+            if (bytes[i] == ' ') {
+                byte[] sequence = new byte[] { '\b', ' ' };
+                // Вставляем последовательность b-s после пробела
+                bytes = insertBytes(bytes, sequence, i + 1);
+                i += 2;
             }
-            // ObjectOutputStream oos = new ObjectOutputStream(fos);
-            // oos.writeObject(buf);
-            // fos.close();
-            
-            // System.out.println("File has been written");
-            // System.out.println(encrypt(".\\leasing.txt"));
-            // System.out.println(encrypt(".\\leasing_new.txt"));
         }
-        catch(IOException ex){
-              
-            System.out.println(ex.getMessage());
+
+        // Заменяем 10 послед-тей s-s-b на послед-ти s-b-s в случайных местах
+        int count = 0;
+        Random random = new Random();
+        while (count < 10) {
+            int index = random.nextInt(bytes.length - 2);
+            if (bytes[index] == ' ' && bytes[index + 1] == ' ' && bytes[index + 2] == '\b') {
+                bytes[index + 1] = '\b';
+                bytes[index + 2] = ' ';
+                count++;
+            }
+        }
+
+        // Записываем байты в выходной файл
+        FileOutputStream outputStream = new FileOutputStream(outputFilePath);
+        outputStream.write(bytes);
+        outputStream.close();
+        
+        
+        
+        if (encrypt(inputFilePath) == encrypt(outputFilePath)) {
+            System.out.println("Коллизия обнаружена");
+            break;
         } 
+        }
         
-        
-        
+    }
+
+    public static byte[] insertBytes(byte[] original, byte[] insert, int index) {
+        byte[] result = new byte[original.length + insert.length];
+        // Копия исходного в выходной от начала до пробела (места вставки)
+        System.arraycopy(original, 0, result, 0, index);
+        // Копия послед-ти в выходной от начала до конца
+        System.arraycopy(insert, 0, result, index, insert.length);
+        // Копия исходного в выходной от пробела (места вставки) до конца
+        System.arraycopy(original, index, result, index + insert.length, original.length - index);
+
+        return result;
     }
 
     private static String encrypt(String filePath) {
         try {
             ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "openssl dgst -sha1 " + filePath);
             Process process = pb.start();
-
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line, result = "";
-
             while ((line = reader.readLine()) != null) {
                 System.out.println(line);
                 result = line.split("= ")[1];
             }
 
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                System.err.println("Error: " + exitCode);
+            }
+
             return result;
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
-            return "";
+            return e.toString();
         }
     }
 }

@@ -26,7 +26,7 @@ public class lab1{
         // Заменяем 10 послед-тей s-s-b на послед-ти s-b-s в случайных местах
         int count = 0;
         Random random = new Random();
-        while (count < 10) {
+        while (count < 15) {
             int index = random.nextInt(bytes.length - 2);
             if (bytes[index] == ' ' && bytes[index + 1] == ' ' && bytes[index + 2] == '\b') {
                 bytes[index + 1] = '\b';
@@ -42,7 +42,7 @@ public class lab1{
         
         
         
-        if (encrypt(inputFilePath) == encrypt(outputFilePath)) {
+        if (encrypt(inputFilePath).equals(encrypt(outputFilePath))) {
             System.out.println("Коллизия обнаружена");
             break;
         } 
@@ -64,7 +64,7 @@ public class lab1{
 
     private static String encrypt(String filePath) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "openssl dgst -sha1 " + filePath);
+            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "openssl dgst -md5 " + filePath);
             Process process = pb.start();
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line, result = "";

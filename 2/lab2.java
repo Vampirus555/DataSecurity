@@ -13,10 +13,10 @@ public class lab2{
 
         try {
             String hex = encrypt(filePath); // получение hash кода из файла
-            String secretMessage = ""; // стркоа битов
+            String secretMessage = ""; // строка битов
             
             //Преобразование строки в массив байтов
-            byte[] stringBytes = HexStringToByteArray(hex);
+            byte[] stringBytes = hexStringToByteArray(hex);
             
             // Преобразование масcива байтов в строку битов
             for (int i = 0; i < stringBytes.length; i++) {
@@ -27,7 +27,7 @@ public class lab2{
             // System.out.println("Биты>: " + secretMessage);
             
 
-            int messageIndex = 0; 
+             
             // Чтение исходного файла изображения
             FileInputStream inputStream = new FileInputStream(originalImagePath);
             byte[] header = new byte[122];
@@ -40,6 +40,7 @@ public class lab2{
             int[] key = generateKey(secretMessage.length(), 0, imageBytes.length);
             
             // Вставим секретное сообщение в байты изображения, используя метод замены LSB
+            int messageIndex = 0;
             for (int i = 0; i < key.length; i++) {
                 if (messageIndex < secretMessage.length()) {
                     // Получаем двоичное представление текущего байта
@@ -140,7 +141,7 @@ public class lab2{
         return result;
     }
 
-    public static byte[] HexStringToByteArray(String hex) {
+    public static byte[] hexStringToByteArray(String hex) {
         int len = hex.length();
         byte[] stringBytes = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {

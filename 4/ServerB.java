@@ -11,17 +11,21 @@ public class ServerB {
                 + " -pkeyopt rsa_keygen_bits:1024";
         String generatePublicKey = "openssl rsa -pubout -in " + privateKeyPath + " -out " + publicKeyPath;
         String printKeyStructure = "openssl rsa -text -noout -in " + privateKeyPath;
+        // String printKeyStructure2 = "openssl rsa -text -noout -in " + publicKeyPath;
         String printKeyModulus = "openssl rsa -noout -modulus -in " + privateKeyPath;
 
         // 1. Генерируем пару ключей
         executeCommand(generatePrivateKey);
         executeCommand(generatePublicKey);
+        
+        
 
         // 2. Получаем составляющие ключа
         // Модуль
         String modulusHexString = executeCommand(printKeyModulus).split("=")[1];
         BigInteger modulus = new BigInteger(1, hexStringToByteArray(modulusHexString));
 
+        System.out.println(executeCommand(printKeyStructure));
         // Публичная экспонента
         String publicExpString = executeCommand(printKeyStructure).replaceAll(" ", "").replaceAll("\n", "");
         publicExpString = publicExpString

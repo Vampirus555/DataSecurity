@@ -1,10 +1,21 @@
-class VerifVoicesCounter{
-    private int count =0;
+import java.util.HashMap;
 
-    public VerifVoicesCounter(){
-        
+class VerifVoicesCounter {
+    private HashMap<String, Integer> votesHashMap;
+
+    public VerifVoicesCounter() {
+        this.votesHashMap = new HashMap<String, Integer>();
     }
 
-    public void setCount(){count++;};
-    public int getCount(){return count;};
+    public void incrementCount(String candidate) {
+        if (votesHashMap.containsKey(candidate)) {
+            votesHashMap.put(candidate, votesHashMap.get(candidate) + 1);
+        } else {
+            votesHashMap.put(candidate, 1);
+        }
+    };
+
+    public HashMap<String, Integer> getCounter() {
+        return this.votesHashMap;
+    };
 }

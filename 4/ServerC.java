@@ -1,4 +1,5 @@
 import java.io.*;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -7,80 +8,81 @@ public class ServerC {
     public static VerifVoicesCounter counter = new VerifVoicesCounter();
 
     public static void main(String args[]) throws Exception {
-        String publicKeyPath = new File("publickey.pem").getAbsolutePath();
-        String messageFilePath = new File("message.txt").getAbsolutePath();
-        String signatureFilePath = new File("signature.bin").getAbsolutePath();
-
-        String verifySignature = "openssl dgst -sha256 -verify " + publicKeyPath + " -signature " + signatureFilePath + " " + messageFilePath;
-
         try (ServerSocket server = new ServerSocket(5005)) { // Запускаем сервер на порту 5005
+            System.out.println("Сервер в ожидании подключения...");
             Socket client = server.accept();
-            BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream())); // Канал чтения из сокета
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream())); // Канал записи в сокет
+            System.out.println("Соединение готово, ожидание команды...");
+            BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream())); // Канал чтения
+            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream())); // Канал записи
 
+            // Получаем модуль и публичную экспоненту 
+            String modulusHexString = in.readLine();
+            BigInteger modulus = new BigInteger(1, hexStringToByteArray(modulusHexString));
+            String publicExpString = in.readLine();
+            BigInteger e = BigInteger.valueOf(Integer.parseInt(publicExpString));
+            
+            String originalMessage = "", signedMessage = "";
             while (!client.isClosed()) {
                 String entry;
                 while ((entry = in.readLine()) != null) {
-                    System.out.println("Проверяю на остановку");
                     if (entry.equalsIgnoreCase("stop"))
                         break;
-                    System.out.println("Проверяю команду на получение результата");
-                    if (entry.equalsIgnoreCase("result"))
-                        out.write(counter.getCount() + "\n");
-                        
-
+                    if (entry.equalsIgnoreCase("result")) {
+                        System.out.println("Получена команда result. Отправка результата клиенту");
+                        counter.getCounter().forEach((key, value) -> {
+                            System.out.println(key + " - " + value);
+                            try {
+                                out.write(key + " - " + value + "\n");
+                                out.flush();
+                            } catch (IOException e1) {
+                                e1.printStackTrace();
+                            }
+                        });
+                        out.write("stop" + "\n");
+                        out.flush();
+                        break;
+                    }
+                    
+                    // Символ для определения очередности сообщений
                     char lastChar = entry.substring(entry.length() - 1).charAt(0);
-                    String message = entry.substring(0,entry.length() - 1);
+                    // 16. Получаем сообщение от клиента
+                    String message = entry.substring(0, entry.length() - 1);
+                    
+                    System.out.println("Получено сообщение " + lastChar);
+                    
+                    if (lastChar == '1') { // Получаем оригинальное сообщение
+                        originalMessage = message;
+                    } else if (lastChar == '2') { // Получаем подписанное сообщение
+                        signedMessage = message;
+                        BigInteger m = new BigInteger(1, originalMessage.getBytes());
+                        BigInteger signedMessageBI = new BigInteger(1, hexStringToByteArray(signedMessage));
 
-                    if(lastChar =='1'){
-                        FileOutputStream fos = new FileOutputStream(messageFilePath);
-                        fos.write(hexStringToByteArray(message));
-                        fos.close();
+                        // 17. Проверяем подпись
+                        Boolean result = verifySignature(signedMessageBI, m, e, modulus);
+                        if (result) {
+                            counter.incrementCount(originalMessage);
+                            System.out.println("Голос подтвержден. Кандидат: " + originalMessage);
+                        } else {
+                            System.out.println("Голос не подтвержден.");
+                        }
                     }
-                    else if(lastChar =='2'){
-                        FileOutputStream fos = new FileOutputStream(signatureFilePath);
-                        fos.write(hexStringToByteArray(message));
-                        fos.close();
-
-                        System.out.println("Проверяю подпись");
-                        String result = executeCommand(verifySignature);
-                        if(result.equals("Verifide OK"))
-                            counter.setCount();
-                    }
-
-                    // String[] parts = entry.split(" ");
-                    // String message = parts[0]; 
-                    // String type = parts[1]; 
-                    // if(type.equals("1")){
-                    //     FileOutputStream fos = new FileOutputStream(messageFilePath);
-                    //     fos.write(hexStringToByteArray(message));
-                    //     fos.close();
-                    // }
-                    // else if(type.equals("2")){
-                    //     FileOutputStream fos = new FileOutputStream(signatureFilePath);
-                    //     fos.write(hexStringToByteArray(message));
-                    //     fos.close();
-                    // }
-                    
-                    
-
-                    
-                     
-                    
                 }
-                
+                if (entry.equalsIgnoreCase("stop"))
+                    break;
             }
-            System.out.println("Client disconnected");
-            System.out.println("Closing connections & channels...");
+            System.out.println("Клиент отключился, сервер завершает работу.");
             in.close();
             client.close();
             server.close();
-            System.out.println("Closing server connections & channels - DONE.");
         } catch (IOException e) {
             e.printStackTrace();
         }
-        
-        
+
+    }
+
+    // Проверка подлинности голоса 
+    public static boolean verifySignature(BigInteger signedM, BigInteger m, BigInteger e, BigInteger n) {
+        return signedM.modPow(e, n).equals(m);
     }
 
     // Перевод строки, записанной в 16сс, в массив байтов

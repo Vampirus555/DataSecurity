@@ -1,113 +1,111 @@
 import java.io.*;
+import java.math.BigInteger;
 import java.net.Socket;
+import java.security.SecureRandom;
 import java.util.Scanner;
 
 public class ClientA {
     public static void main(String args[]) throws Exception {
-        String privateKeyPath = new File("privatekey.pem").getPath();
-        String publicKeyPath = new File("publickey.pem").getPath();
-        String messageFilePath = new File("message.txt").getPath();
-        String encryptedMessageFilePath = new File("message.enc").getPath();
-        
-        String generatePrivateKey = "openssl genpkey -algorithm RSA -out " + privateKeyPath + " -pkeyopt rsa_keygen_bits:1024";
-        String generatePublicKey = "openssl rsa -pubout -in " + privateKeyPath + " -out " + publicKeyPath;
-        String encryptFile = "openssl rsautl -encrypt -inkey " + publicKeyPath + " -pubin -in " + messageFilePath + " -out " + encryptedMessageFilePath;
-
-
-        // Генерируем пару ключей
-        executeCommand(generatePrivateKey);
-        executeCommand(generatePublicKey);
-
-        Scanner in = new Scanner(System.in);
+        Scanner in = new Scanner(System.in, "Cp866");
         String session = "1";
-
         try {
             // try {
-            //     Process process = Runtime.getRuntime().exec("java ServerB");
+            // Process process = Runtime.getRuntime().exec("java ServerB");
             // } catch (IOException e) {
-            //     e.printStackTrace();
+            // e.printStackTrace();
             // }
             // Подключаемся к серверу B
             Socket socketB = new Socket("localhost", 5000);
             BufferedReader inFromB = new BufferedReader(new InputStreamReader(socketB.getInputStream()));
             BufferedWriter outToB = new BufferedWriter(new OutputStreamWriter(socketB.getOutputStream()));
 
-
             // try {
-            //     Process process = Runtime.getRuntime().exec("java ServerC");
+            // Process process = Runtime.getRuntime().exec("java ServerC");
             // } catch (IOException e) {
-            //     e.printStackTrace();
+            // e.printStackTrace();
             // }
             // Подключаемся к серверу С
             Socket socketC = new Socket("localhost", 5005);
             BufferedReader inFromC = new BufferedReader(new InputStreamReader(socketC.getInputStream()));
-            BufferedWriter outToC = new BufferedWriter(new OutputStreamWriter(socketC.getOutputStream()));    
-            
-            
-            
+            BufferedWriter outToC = new BufferedWriter(new OutputStreamWriter(socketC.getOutputStream()));
 
+            // 4. Получаем с подписывающего сервера модуль и экспоненту публичного ключа
+            String modulusHexString = inFromB.readLine();
+            BigInteger modulus = new BigInteger(1, hexStringToByteArray(modulusHexString));
+            String publicExpString = inFromB.readLine();
+            BigInteger e = BigInteger.valueOf(Integer.parseInt(publicExpString));
+
+            // Отправляем проверяющему серверу модуль и экспоненту
+            outToC.write(modulusHexString + "\n");
+            outToC.flush();
+            Thread.sleep(500);
+            outToC.write(publicExpString + "\n");
+            outToC.flush();
 
             while (!socketB.isOutputShutdown()) {
-                while(session.equals("1")){
-                    FileOutputStream fos = new FileOutputStream(messageFilePath);
+                while (session.equals("1")) {
+                    // 5. Записываем голос пользователя
                     System.out.println("Ваш голос:");
                     String voice = in.nextLine();
-                    fos.write(voice.getBytes()); // Голос
-                    fos.close();
 
-                    System.out.println("Шифрую файл");
-                    executeCommand(encryptFile); // Шифруем файл
-                    System.out.println("Файл зашифрован");
+                    // 6. Переводим сообщение в BigInteger для дальнейшей маскировки
+                    BigInteger message = new BigInteger(1, voice.getBytes());
+                    // System.out.println("msgBI: " + message);
 
-                    System.out.println("Читаю файл");
-                    FileInputStream fis = new FileInputStream(encryptedMessageFilePath);
-                    byte[] encMessageBytes = new byte[fis.available()];
-                    fis.read(encMessageBytes); // Читаем зашифрованное сообщение
-                    fis.close();
-                    System.out.println("Прочитал файл");
+                    // 7. Генерируем случайный маскирующий множитель
+                    BigInteger r = new BigInteger(1, generateR(modulus).toByteArray());
 
-                    System.out.println("Передаю файл");
-                    outToB.write(byteArrayToHexString(encMessageBytes) + "\n"); // Передаем файл серверу B
+                    // 8. Маскируем сообщение случайным множителем
+                    BigInteger blindedMessage = new BigInteger(1,
+                            blindMessage(message, r, e, modulus).toByteArray());
+                    // System.out.println("blindedMsgBI (sent to sB): " + blindedMessage);
+
+                    // 9. Передаем замаскированное сообщение на подпись
+                    System.out.println("Сообщение отправлено на подпись");
+                    outToB.write(byteArrayToHexString(blindedMessage.toByteArray()) + "\n");
                     outToB.flush();
-                    Thread.sleep(3000);
-
-                    
-                    
-                    System.out.println("Получаю файл");
-                    String signedMessage = inFromB.readLine(); // Получаем подписанное сообщение
-                    // byte[] signedMessageBytes = hexStringToByteArray(signedMessage.replace("\n", ""));
-
-                
-                    System.out.println("Передаю файл серверу С");
-                    // Передаем что-то серверу C
-                    outToC.write(voice + "1"  + "\n");
-                    outToC.flush();
-                    Thread.sleep(1000);
-                    outToC.write(signedMessage  + "2" + "\n");
-                    outToC.flush();
                     Thread.sleep(1000);
 
+                    // 13. Получаем подписанное замаскированное сообщение
+                    System.out.println("Подписанное сообщение получено");
+                    BigInteger signedBlindedMessage = new BigInteger(1, hexStringToByteArray(inFromB.readLine()));
+                    // System.out.println("signedBlindedMsgBI (recieved from sB): " + signedBlindedMessage);
+
+                    // 14. Снимаем маскировку
+                    BigInteger signedMessage = unblindSignature(signedBlindedMessage, r, modulus);
+                    // System.out.println("signedMsgBI (sent to sC): " + signedMessage);
+
+                    // 15. Отправляем проверяющему серверу оригинальное и подписанное сообщение
+                    System.out.println("Оригинальное сообщение отправлено");
+                    outToC.write(voice + "1\n");
+                    outToC.flush();
+                    Thread.sleep(500);
+                    System.out.println("Подписанное сообщение отправлено");
+                    outToC.write(byteArrayToHexString(signedMessage.toByteArray()) + "2\n");
+                    outToC.flush();
+                    Thread.sleep(1000);
+
+                    // 18. Отправляем команду для получения результатов голосования
                     outToC.write("result" + "\n");
                     outToC.flush();
                     Thread.sleep(1000);
 
-                    String result = inFromC.readLine();
-                    System.out.println("Кол-во верифицированных голосов: " + result);
-
+                    System.out.println("Кол-во верифицированных голосов: ");
+                    String counterString;
+                    while((counterString = inFromC.readLine()) != null) {
+                        if (counterString.equalsIgnoreCase("stop"))
+                            break;
+                        System.out.println(counterString);
+                    }
 
                     System.out.println("1 - продолжить, 0 - завершить. Ваш выбор:");
                     session = in.nextLine();
-
                 }
                 outToB.write("stop" + "\n");
                 outToB.flush();
                 outToC.write("stop" + "\n");
                 outToC.flush();
-                
             }
-
-            
-
             inFromB.close();
             outToB.close();
             inFromC.close();
@@ -117,6 +115,26 @@ public class ClientA {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // Генерация маскирующего множителя
+    public static BigInteger generateR(BigInteger n) {
+        SecureRandom random = new SecureRandom();
+        BigInteger r;
+        do {
+            r = new BigInteger(n.bitLength(), random); // Генерируем случайное число
+        } while (r.compareTo(n) >= 0 || !r.gcd(n).equals(BigInteger.ONE)); // Проверяем взаимно простое ли оно с модулем
+        return r;
+    }
+
+    // Маскировка сообщения
+    public static BigInteger blindMessage(BigInteger m, BigInteger r, BigInteger e, BigInteger n) {
+        return m.multiply(r.modPow(e, n)).mod(n);
+    }
+
+    // Снятие маскировки
+    public static BigInteger unblindSignature(BigInteger m, BigInteger r, BigInteger n) {
+        return m.multiply(r.modInverse(n)).mod(n);
     }
 
     // Перевод строки, записанной в 16сс, в массив байтов

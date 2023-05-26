@@ -8,9 +8,9 @@ public class Lab5 {
        
     
 //------------------------------
-//  Итог: класс LFSR не выдает желаемого результата,
-//  при некоторых изменениях случайным образом получилась более контрастное изображение, но это неверный результат
-//  Вывод: необходимо поработать над классом LFSR
+//  Итог: теперь полученный результат стал больше похож на правду (можно увидеть в текущей версии коммита в файле "tuxEmbed"),
+//  но возможно при работе с интовыми значениями что-то пошло не так
+//  Вывод: попробовать использовать значения полинома и регистра, чтобы было проще выделять последний бит регистра и проводить XOR
 //------------------------------
         try {
             // Чтение исходного файла изображения
@@ -54,20 +54,7 @@ public class Lab5 {
         }
     }
 
-    public static byte[] encrypt(byte[] image, LFSR lfsr) {
-        byte[] encryptedImage = new byte[image.length];
-        for (int i = 0; i < image.length; i++) {
-            byte encryptedByte = 0;
-            for (int j = 0; j < 8; j++) {
-                boolean lfsrBit = lfsr.getNextBit() == 1;
-                boolean byteBit = ((image[i] >> j) & 1) == 1;
-                boolean encryptedBit = byteBit ^ lfsrBit;
-                encryptedByte |= (encryptedBit ? 1 : 0) << j;
-            }
-            encryptedImage[i] = encryptedByte;
-        }
-        return encryptedImage;
-    }
+    
 
     
 }

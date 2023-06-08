@@ -139,7 +139,7 @@ public class EllipticCurve {
 
         // создаем график
         JFreeChart chart = ChartFactory.createScatterPlot(
-                "Elliptic Curve", // заголовок графика
+                "Эллиптическая кривая", // заголовок графика
                 "X", // ось X
                 "Y", // ось Y
                 dataset, // данные
@@ -162,7 +162,7 @@ public class EllipticCurve {
         // создаем панель с графиком и добавляем ее на форму
         ChartPanel panel = new ChartPanel(chart);
         panel.setPreferredSize(new Dimension(800, 600));
-        JFrame frame = new JFrame("Elliptic Curve");
+        JFrame frame = new JFrame("График эллиптической кривой в конечном поле");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setContentPane(panel);
         frame.pack();
@@ -190,13 +190,19 @@ public class EllipticCurve {
                 System.out.println("G:" + curve.g.toString());
                 System.out.println("G*:" + g2.toString());
 
-                XYSeries multiSeries = new XYSeries("Удвоение точки кривой");
+                XYSeries gSeries = new XYSeries("G");
+                gSeries.add(curve.g.x.intValue(), curve.g.y.intValue());
+
+                XYSeries multiSeries = new XYSeries(value + "*G");
                 multiSeries.add(g2.x.intValue(), g2.y.intValue());
 
                 chart.getXYPlot().getDataset();
                 dataset.addSeries(multiSeries);
+                dataset.addSeries(gSeries);
                 plot.getRenderer().setSeriesShape(1, shape1);
                 plot.getRenderer().setSeriesPaint(1, Color.RED);
+                plot.getRenderer().setSeriesShape(2, shape1);
+                plot.getRenderer().setSeriesPaint(2, Color.ORANGE);
                 panel.repaint();
 
                 try {
@@ -207,6 +213,7 @@ public class EllipticCurve {
 
                 chart.getXYPlot().getDataset();
                 dataset.removeSeries(multiSeries);
+                dataset.removeSeries(gSeries);
                 panel.repaint();
             }
 
@@ -259,25 +266,7 @@ public class EllipticCurve {
         } 
 
         
-        
 
-        
-
-        // try {
-        //     Thread.sleep(10000);
-        // } catch (InterruptedException e) {
-        //     e.printStackTrace();
-        // }
-        // frame.clearPostOpPoints();
-
-        // ECPoint p = new ECPoint(2, 10);
-        // ECPoint q = new ECPoint(8, 14);
-        // ECPoint r = curve.add(p, q);
-        // System.out.println("P:" + p.toString());
-        // System.out.println("Q:" + q.toString());
-        // System.out.println("R:" + r.toString());
-        // frame.setPostOpPoint(p, "P");
-        // frame.setPostOpPoint(q, "Q");
-        // frame.setPostOpPoint(r, "R");
+        in.close();
     }
 }
